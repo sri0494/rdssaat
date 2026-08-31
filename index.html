@@ -1,0 +1,2330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>RD-SSAAT - Rural Development Audit Tool</title>
+    
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(180deg, #F4E4C1 0%, #E8D4A8 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Geometric Pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(0,0,0,0.03) 20px, rgba(0,0,0,0.03) 40px),
+                repeating-linear-gradient(-45deg, transparent, transparent 20px, rgba(0,0,0,0.03) 20px, rgba(0,0,0,0.03) 40px);
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .top-bar {
+            background: #1B5E20;
+            height: 40px;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding-top: 40px;
+            padding-bottom: 60px; /* Space for the floating powered-by badge */
+            position: relative;
+            z-index: 1;
+        }
+
+        .screen { display: none; animation: fadeIn 0.3s; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .back-btn {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px 10px;
+            z-index: 10;
+        }
+
+        .header {
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column; 
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        /* AP Government Emblem */
+        .govt-emblem {
+            width: 150px; 
+            height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .govt-emblem img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            mix-blend-mode: multiply; /* Removes white background */
+        }
+
+        .rd-logo {
+            font-size: 32px;
+            font-weight: 900;
+            color: #2C3E50;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            margin-top: 10px;
+        }
+
+        .content { padding: 20px; }
+
+        .form-title {
+            font-size: 20px;
+            color: #2C3E50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+
+        .input-wrapper {
+            position: relative;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 18px 60px 18px 25px;
+            border: none;
+            font-size: 16px;
+            background: transparent;
+            color: #2C3E50;
+            border-radius: 30px;
+        }
+
+        .form-input::placeholder { color: #B0B0B0; }
+        .form-input:focus, .form-select:focus { outline: none; }
+
+        .input-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+        }
+
+        .form-textarea {
+            width: 100%;
+            padding: 18px 25px;
+            border: none;
+            border-radius: 20px;
+            font-size: 16px;
+            background: white;
+            color: #2C3E50;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            resize: vertical;
+        }
+
+        .submit-btn {
+            width: 250px;
+            margin: 0 auto;
+            display: block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #6BAF3C 0%, #5A9E2D 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(107, 175, 60, 0.4);
+            transition: all 0.3s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(107, 175, 60, 0.5);
+        }
+
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .refresh-btn {
+            width: 300px;
+            margin: 40px auto 20px;
+            display: block;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #FF6B6B 0%, #E85454 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .delete-btn {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .link-btn {
+            text-align: center;
+            margin: 20px;
+        }
+
+        .link-btn a {
+            color: #2C3E50;
+            text-decoration: underline;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* --- UPDATED FLOATING BADGE DESIGN --- */
+        .powered-by {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            font-size: 11px;
+            color: #666;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            pointer-events: none; /* never block clicks on whatever it happens to float over */
+            -webkit-backdrop-filter: blur(4px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .powered-by strong {
+            font-size: 11px;
+            color: #2C3E50;
+            font-weight: 900;
+            margin-right: 3px;
+        }
+
+        .status-message {
+            padding: 15px 20px;
+            margin: 20px;
+            border-radius: 10px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .status-success {
+            background: #D4EDDA;
+            color: #155724;
+            border: 1px solid #C3E6CB;
+        }
+
+        .status-error {
+            background: #F8D7DA;
+            color: #721C24;
+            border: 1px solid #F5C6CB;
+        }
+
+        .status-info {
+            background: #D1ECF1;
+            color: #0C5460;
+            border: 1px solid #BEE5EB;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #2C3E50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-badge {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #6BAF3C 0%, #5A9E2D 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .user-badge-compact {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .user-badge-compact .user-avatar { width: 38px; height: 38px; font-size: 16px; }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            margin: 20px 0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        video {
+            width: 100%;
+            max-height: 400px;
+            display: block;
+        }
+
+        .face-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border: 4px solid #6BAF3C;
+            border-radius: 50%;
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+        }
+
+        .face-guide {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .face-guide h3 {
+            color: #FF9800;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .face-guide ol {
+            margin-left: 20px;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .match-result {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            margin: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .match-result.success { border: 3px solid #6BAF3C; }
+        .match-result.failed { border: 3px solid #FF6B6B; }
+
+        .match-icon { font-size: 64px; margin-bottom: 15px; }
+        .match-score { font-size: 24px; font-weight: 700; color: #2C3E50; margin-bottom: 10px; }
+
+        .gps-info {
+            background: #F0F8FF;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 20px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #2C3E50;
+        }
+
+        .employee-item {
+            background: #F9F9F9;
+            border: 1px solid #E0E0E0;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .employee-info {
+            flex: 1;
+        }
+
+        .employee-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 5px;
+        }
+
+        .employee-id {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .employee-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* OTP Input Boxes */
+        .otp-box {
+            width: 42px;
+            height: 50px;
+            border: 2.5px solid #E0E0E0;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: 800;
+            color: #1565C0;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #FAFAFA;
+        }
+        .otp-box:focus {
+            border-color: #1976D2;
+            box-shadow: 0 0 0 3px rgba(25,118,210,0.15);
+            background: white;
+        }
+        .otp-box.filled {
+            border-color: #2E7D32;
+            background: #F1F8E9;
+            color: #1B5E20;
+        }
+        .otp-box.error {
+            border-color: #C62828;
+            background: #FFEBEE;
+            animation: shake 0.3s;
+        }
+        @keyframes shake {
+            0%,100%{transform:translateX(0)}
+            25%{transform:translateX(-4px)}
+            75%{transform:translateX(4px)}
+        }
+        .badge-warning { background: #FFF3CD; color: #856404; }
+        .badge-success { background: #D4EDDA; color: #155724; }
+        .badge-error   { background: #F8D7DA; color: #721C24; }
+
+        /* ── CAPTCHA ── */
+        .captcha-wrapper {
+            margin: 10px 0 4px;
+        }
+        .captcha-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .captcha-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .captcha-canvas-wrap {
+            position: relative;
+            flex: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #E0E0E0;
+            background: #F7F7F7;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .captcha-canvas-wrap canvas {
+            display: block;
+            width: 100%;
+            height: 42px;
+        }
+        .captcha-refresh-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #1976D2, #0D47A1);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(25,118,210,0.35);
+            flex-shrink: 0;
+            transition: transform 0.3s;
+        }
+        .captcha-refresh-btn:active { transform: rotate(180deg) scale(0.9); }
+        .captcha-input-wrap {
+            position: relative;
+            flex: 1;
+        }
+        .captcha-input {
+            width: 100%;
+            padding: 9px 36px 9px 14px;
+            border: 2px solid #E8E8E8;
+            border-radius: 10px;
+            font-size: 15px;
+            letter-spacing: 5px;
+            font-weight: 700;
+            color: #2C3E50;
+            background: white;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .captcha-input:focus { border-color: #1976D2; }
+        .captcha-input.valid { border-color: #2E7D32; background: #F1F8E9; }
+        .captcha-input.invalid { border-color: #C62828; background: #FFEBEE; }
+        .captcha-tick {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 900;
+            color: #6BAF3C;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            border-top: 4px solid #6BAF3C;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .hidden { display: none !important; }
+
+        /* ══════════════════════════════════════════════════════════
+           RESPONSIVE DASHBOARD SHELL (admin/manager/hr/employee dashboards)
+           The login and reset-password screens keep the original narrow
+           .container (600px) — this shell breaks OUT of that width only
+           for the dashboard screens, so desktop actually uses the screen
+           instead of looking like a stretched mobile page.
+           ══════════════════════════════════════════════════════════ */
+        .app-shell {
+            display: flex;
+            align-items: stretch;
+            min-height: calc(100vh - 40px);
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            margin-left: -50vw; /* full-bleed breakout from the centered 600px .container */
+        }
+
+        .sidebar {
+            width: 250px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, #1B5E20 0%, #0D3B1F 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 40px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+            z-index: 60;
+            transition: transform 0.25s ease;
+        }
+        .sidebar-brand {
+            padding: 22px 20px;
+            font-size: 17px;
+            font-weight: 900;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            white-space: nowrap;
+        }
+        .sidebar-nav { padding: 10px 0; flex: 1; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 20px; color: rgba(255,255,255,0.85);
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: background 0.15s;
+            user-select: none;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.08); }
+        .nav-item.active { background: rgba(255,255,255,0.14); border-left-color: #FFD700; color: #fff; }
+        .nav-icon { width: 20px; text-align: center; flex-shrink: 0; }
+
+        .main-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .dash-topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; padding: 12px 24px; background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            position: sticky; top: 40px; z-index: 40;
+        }
+        .hamburger-btn {
+            display: none; background: none; border: none; font-size: 22px;
+            cursor: pointer; color: #1B5E20; padding: 4px 8px; line-height: 1;
+        }
+        .dash-topbar-title { font-size: 18px; font-weight: 800; color: #2C3E50; flex: 1; }
+        .dash-topbar-user { display: flex; align-items: center; gap: 14px; }
+        .logout-link {
+            background: none; border: 1px solid #C62828; color: #C62828;
+            border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 700; cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .main-content { padding: 22px 24px 60px; flex: 1; }
+        .view { display: none; }
+        .view.active { display: block; animation: fadeIn 0.25s; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; align-items: start; }
+
+        .sidebar-overlay { display: none; position: fixed; inset: 0; top: 40px; background: rgba(0,0,0,0.45); z-index: 55; }
+
+        /* ── Tablet (768–1023px): sidebar becomes off-canvas, hamburger appears ── */
+        @media (max-width: 1023px) {
+            .app-shell { display: block; }
+            .sidebar {
+                position: fixed; left: 0; top: 40px; bottom: 0; height: calc(100vh - 40px);
+                transform: translateX(-100%);
+            }
+            .sidebar.open { transform: translateX(0); }
+            .hamburger-btn { display: inline-flex; }
+            .sidebar-overlay.active { display: block; }
+        }
+
+        /* ── Mobile (<768px): stack cards, tighten paddings, touch-friendly ── */
+        @media (max-width: 767px) {
+            .cards-grid { grid-template-columns: 1fr; }
+            .main-content { padding: 16px 14px 60px; }
+            .dash-topbar { padding: 10px 14px; }
+            .dash-topbar-title { font-size: 15px; }
+            .dash-topbar-user .user-badge-compact > div:last-child { display: none; } /* name/role text hidden, avatar stays */
+            .sidebar { width: 230px; }
+            .nav-item { padding: 14px 20px; } /* larger touch target */
+            .logout-link { padding: 8px 14px; }
+
+            /* The fixed "Powered By" badge otherwise floats over whatever
+               happens to scroll to that screen position — on a tall mobile
+               form (e.g. Add Staff) that meant it visually sat on top of the
+               last couple of fields. Below the dashboard breakpoint, render
+               it in normal document flow instead of fixed. */
+            .powered-by {
+                position: static;
+                display: block;
+                width: fit-content;
+                margin: 16px auto 0;
+                bottom: auto; right: auto;
+            }
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            margin: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 22px;
+            font-weight: 700;
+            color: #2C3E50;
+            margin-bottom: 20px;
+        }
+
+        .modal-close {
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar"></div>
+    
+    <div class="container">
+        <div id="loginScreen" class="screen active">
+            <div class="header">
+                <div class="logo-container">
+                    <div class="govt-emblem">
+                        <img src="data:image/jpeg;base64,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" alt="Government of AP Emblem">
+                    </div>
+                    <div class="rd-logo">RD-SSAAT</div>
+                </div>
+                <p style="color: #666; font-size: 13px; margin-top: 5px;">Rural Development - Social Security Audit Tool</p>
+            </div>
+
+            <div class="content">
+                <h2 class="form-title">Enter your Employee ID</h2>
+
+                <div class="input-wrapper">
+                    <input type="text" id="empId" class="form-input" placeholder="Enter your Employee ID">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="#999">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                </div>
+
+                <div class="input-wrapper">
+                    <input type="password" id="empPassword" class="form-input" placeholder="Enter Password">
+                    <svg class="input-icon" viewBox="0 0 24 24" fill="#999">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
+                    </svg>
+                </div>
+
+                <div id="loginStatus"></div>
+
+                <!-- CAPTCHA -->
+                <div class="captcha-wrapper">
+                    <div class="captcha-label">🔐 Security Code</div>
+                    <div class="captcha-box">
+                        <div class="captcha-canvas-wrap">
+                            <canvas id="captchaCanvas" height="42"></canvas>
+                        </div>
+                        <div class="captcha-input-wrap">
+                            <input type="text" id="captchaInput" class="captcha-input"
+                                placeholder="Enter code"
+                                maxlength="6"
+                                autocomplete="off"
+                                oninput="validateCaptchaLive()"
+                                onpaste="return false"/>
+                            <span class="captcha-tick" id="captchaTick"></span>
+                        </div>
+                        <button class="captcha-refresh-btn" onclick="generateCaptcha()" title="New code">↻</button>
+                    </div>
+                </div>
+
+                <button class="submit-btn" onclick="submitLogin()">Submit</button>
+
+                <div class="link-btn">
+                    <a onclick="showForgotPassword()">Forgot Password?</a>
+                </div>
+
+                <button class="refresh-btn" onclick="refreshData()">Refresh Data</button>
+            </div>
+
+            <div id="loadingModels" class="hidden" style="text-align: center; padding: 20px;">
+                <div class="loading-spinner"></div>
+                <p style="color: #666; margin-top: 15px;">Loading AI Models...</p>
+            </div>
+        </div>
+
+        <div id="adminDashboard" class="screen dashboard-screen">
+        <div class="app-shell">
+            <div class="sidebar-overlay" id="adminSidebarOverlay" onclick="closeSidebarMobile('admin')"></div>
+            <aside class="sidebar" id="adminSidebar">
+                <div class="sidebar-brand">🏛️ RD-SSAAT</div>
+                <nav class="sidebar-nav">
+                    <div class="nav-item active" data-view="overview" onclick="switchView('admin','overview')"><span class="nav-icon">📊</span> Dashboard</div>
+                    <div class="nav-item" data-view="employees" data-roles="admin,hr,manager" onclick="switchView('admin','employees')"><span class="nav-icon">👥</span> <span id="adminEmpNavLabel">Employee Management</span></div>
+                    <div class="nav-item" data-view="leaves" data-roles="admin,hr,manager" onclick="switchView('admin','leaves')"><span class="nav-icon">🗓️</span> Leave Management</div>
+                    <div class="nav-item" data-view="permissions" data-roles="admin" onclick="switchView('admin','permissions')"><span class="nav-icon">🔐</span> Roles &amp; Permissions</div>
+                    <div class="nav-item" data-view="audit" data-roles="admin" onclick="switchView('admin','audit')"><span class="nav-icon">📜</span> Audit Logs</div>
+                    <div class="nav-item" data-view="changepw" onclick="switchView('admin','changepw')"><span class="nav-icon">🔑</span> Change Password</div>
+                </nav>
+            </aside>
+
+            <div class="main-area">
+                <header class="dash-topbar">
+                    <button class="hamburger-btn" onclick="toggleSidebarMobile('admin')">☰</button>
+                    <div class="dash-topbar-title" id="dashboardTitle">Admin Dashboard</div>
+                    <div class="dash-topbar-user">
+                        <div class="user-badge-compact">
+                            <div class="user-avatar">A</div>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 700; color: #2C3E50;" id="adminName"></div>
+                                <div style="font-size: 12px; color: #666;" id="adminRoleLabel">Administrator</div>
+                            </div>
+                        </div>
+                        <button class="logout-link" onclick="logout()">Logout</button>
+                    </div>
+                </header>
+
+                <main class="main-content">
+                    <div class="view active" id="adminView-overview">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="totalEmp">0</div>
+                                <div class="stat-label">Employees</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="enrolledFaces">0</div>
+                                <div class="stat-label">Enrolled</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="adminView-employees">
+                        <div class="cards-grid">
+                            <div class="card" id="addEmpCard">
+                                <div class="card-header">➕ Add Staff</div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="empName" class="form-input" placeholder="Name">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="tel" id="empMobile" class="form-input" placeholder="Mobile (10 digits)" maxlength="10">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="newEmpId" class="form-input" placeholder="Employee ID (EMP002)">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="email" id="empEmail" class="form-input" placeholder="Email Address">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="empDesig" class="form-input" placeholder="Designation">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="empDist" class="form-input" placeholder="District">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="password" id="empPass" class="form-input" placeholder="Password">
+                                </div>
+
+                                <!-- Role selector — full list only usable by admin; hr is restricted server-side to 'employee' regardless -->
+                                <div class="input-wrapper" id="empRoleWrapper">
+                                    <select id="empRole" class="form-select">
+                                        <option value="employee">Employee</option>
+                                        <option value="manager">Manager</option>
+                                        <option value="hr">HR</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-wrapper" id="empManagerWrapper">
+                                    <select id="empManagerId" class="form-select">
+                                        <option value="">-- Assign Manager (optional) --</option>
+                                    </select>
+                                </div>
+
+                                <div id="addEmpStatus"></div>
+
+                                <button class="submit-btn" onclick="addEmp()" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">Add Staff</button>
+                            </div>
+
+                            <div class="card" id="enrollFaceCard">
+                                <div class="card-header">📸 Enroll Face</div>
+
+                                <div class="input-wrapper">
+                                    <select id="enrollSel" class="form-select">
+                                        <option value="">-- Select Employee --</option>
+                                    </select>
+                                </div>
+
+                                <div class="face-guide hidden" id="enrollGuide">
+                                    <h3>📸 Instructions:</h3>
+                                    <ol>
+                                        <li>Position face in green circle</li>
+                                        <li>Look at camera</li>
+                                        <li>Good lighting needed</li>
+                                        <li>Neutral expression</li>
+                                    </ol>
+                                </div>
+
+                                <div class="video-container hidden" id="enrollFrame">
+                                    <video id="enrollVideo" autoplay playsinline></video>
+                                    <div class="face-overlay"></div>
+                                </div>
+
+                                <div id="enrollStatus"></div>
+
+                                <button id="startEnrollBtn" class="submit-btn" onclick="startEnroll()" disabled style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">Start Capture</button>
+
+                                <button id="captureEnrollBtn" class="submit-btn hidden" onclick="captureEnroll()">Capture &amp; Enroll</button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">👥 Employees</div>
+                                <button class="submit-btn" onclick="downloadExcel()" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); margin-bottom: 20px;">
+                                    📥 Download Attendance Excel
+                                </button>
+                                <div id="empList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="adminView-leaves">
+                        <div class="card">
+                            <div class="card-header">🗓️ Leave Requests</div>
+                            <div class="input-wrapper">
+                                <select id="leaveStatusFilter" class="form-select" onchange="loadLeaveRequests()">
+                                    <option value="pending">Pending</option>
+                                    <option value="approved">Approved</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="">All</option>
+                                </select>
+                            </div>
+                            <div id="leaveRequestsList"></div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="adminView-permissions">
+                        <div class="card">
+                            <div class="card-header">🔐 Roles &amp; Permissions</div>
+                            <p style="font-size:12px;color:#888;margin-bottom:14px;">Changes take effect immediately — enforced by the backend on every request, not just hidden in this UI.</p>
+                            <div style="overflow-x:auto;">
+                                <div id="permissionsMatrix"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="adminView-audit">
+                        <div class="card">
+                            <div class="card-header">📜 Audit Logs</div>
+                            <div id="auditLogList"></div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="adminView-changepw">
+                        <div class="card" style="max-width:420px;">
+                            <div class="card-header">🔑 Change Password</div>
+                            <div class="input-wrapper">
+                                <input type="password" id="admCurrentPw" class="form-input" placeholder="Current Password">
+                            </div>
+                            <div class="input-wrapper">
+                                <input type="password" id="admNewPw" class="form-input" placeholder="New Password">
+                            </div>
+                            <div class="input-wrapper">
+                                <input type="password" id="admConfirmPw" class="form-input" placeholder="Confirm New Password">
+                            </div>
+                            <div id="admChangePwStatus"></div>
+                            <button class="submit-btn" onclick="submitChangePassword('adm')">Change Password</button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+        </div>
+
+        <div id="rejectLeaveModal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close" onclick="document.getElementById('rejectLeaveModal').classList.remove('active')">&times;</span>
+                <div class="modal-header">Reject Leave Request</div>
+                <div class="input-wrapper">
+                    <textarea id="rejectReason" class="form-textarea" rows="3" placeholder="Reason for rejection"></textarea>
+                </div>
+                <div id="rejectLeaveStatus"></div>
+                <button class="submit-btn" onclick="confirmRejectLeave()">Confirm Rejection</button>
+            </div>
+        </div>
+
+        <div id="employeeDashboard" class="screen dashboard-screen">
+        <div class="app-shell">
+            <div class="sidebar-overlay" id="employeeSidebarOverlay" onclick="closeSidebarMobile('employee')"></div>
+            <aside class="sidebar" id="employeeSidebar">
+                <div class="sidebar-brand">🏛️ RD-SSAAT</div>
+                <nav class="sidebar-nav">
+                    <div class="nav-item active" data-view="overview" onclick="switchView('employee','overview')"><span class="nav-icon">📍</span> Mark Attendance</div>
+                    <div class="nav-item" data-view="leaves" onclick="switchView('employee','leaves')"><span class="nav-icon">🗓️</span> Leave Management</div>
+                    <div class="nav-item" data-view="changepw" onclick="switchView('employee','changepw')"><span class="nav-icon">🔑</span> Change Password</div>
+                </nav>
+            </aside>
+
+            <div class="main-area">
+                <header class="dash-topbar">
+                    <button class="hamburger-btn" onclick="toggleSidebarMobile('employee')">☰</button>
+                    <div class="dash-topbar-title">Employee Dashboard</div>
+                    <div class="dash-topbar-user">
+                        <div class="user-badge-compact">
+                            <div class="user-avatar" id="empAvatar">E</div>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 700; color: #2C3E50;" id="empDisplayName"></div>
+                                <div style="font-size: 12px; color: #666;" id="empDisplayDesig"></div>
+                            </div>
+                        </div>
+                        <button class="logout-link" onclick="logout()">Logout</button>
+                    </div>
+                </header>
+
+                <main class="main-content">
+                    <div class="view active" id="employeeView-overview">
+                        <div class="cards-grid">
+                            <div class="card">
+                                <div class="card-header">📍 Mark Attendance</div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="village" class="form-input" placeholder="Village">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="mandal" class="form-input" placeholder="Mandal">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <input type="text" id="attDesignation" class="form-input" placeholder="Designation (e.g. Field Auditor)">
+                                </div>
+
+                                <div class="input-wrapper">
+                                    <select id="auditType" class="form-select">
+                                        <option value="">-- Audit Type --</option>
+                                        <option value="MGNREGA">MGNREGA</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="face-guide">
+                                    <h3>📸 Steps:</h3>
+                                    <ol>
+                                        <li>Enter village, mandal & designation</li>
+                                        <li>Click "Start Face Recognition"</li>
+                                        <li>GPS will be captured</li>
+                                        <li>Face matched ≥ 70% = verified</li>
+                                        <li>Add notes and submit</li>
+                                    </ol>
+                                </div>
+
+                                <div class="video-container hidden" id="attFrame">
+                                    <video id="attVideo" autoplay playsinline></video>
+                                    <div class="face-overlay"></div>
+                                </div>
+
+                                <div id="matchResult" class="hidden"></div>
+                                <div id="gpsDisplay"></div>
+                                <div id="attStatus"></div>
+
+                                <button id="startRecBtn" class="submit-btn" onclick="startRec()" style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);">Start Face Recognition</button>
+
+                                <div class="input-wrapper hidden" id="notesGrp">
+                                    <textarea id="attNotes" class="form-textarea" rows="3" placeholder="Work details..."></textarea>
+                                </div>
+
+                                <button id="submitAttBtn" class="submit-btn hidden" onclick="submitAtt()">Submit Attendance</button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">📋 Recent (10)</div>
+                                <div id="attHistory"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="employeeView-leaves">
+                        <div class="cards-grid">
+                            <div class="card">
+                                <div class="card-header">🗓️ Apply for Leave</div>
+
+                                <div id="leaveBalanceDisplay" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+
+                                <div class="input-wrapper">
+                                    <select id="leaveType" class="form-select">
+                                        <option value="">-- Leave Type --</option>
+                                    </select>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="date" id="leaveFrom" class="form-input" placeholder="From Date">
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="date" id="leaveTo" class="form-input" placeholder="To Date">
+                                </div>
+                                <div id="leaveDaysPreview" style="font-size:13px;color:#666;margin:-8px 0 12px;"></div>
+                                <div class="input-wrapper">
+                                    <textarea id="leaveReason" class="form-textarea" rows="2" placeholder="Reason for leave"></textarea>
+                                </div>
+                                <div id="leaveApplyStatus"></div>
+                                <button class="submit-btn" onclick="applyLeave()" style="background: linear-gradient(135deg, #7B1FA2 0%, #4A148C 100%);">Submit Leave Request</button>
+                            </div>
+
+                            <div class="card">
+                                <div class="card-header">📋 My Leave Requests</div>
+                                <div id="myLeaveList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="view" id="employeeView-changepw">
+                        <div class="card" style="max-width:420px;">
+                            <div class="card-header">🔑 Change Password</div>
+                            <div class="input-wrapper">
+                                <input type="password" id="empCurrentPw" class="form-input" placeholder="Current Password">
+                            </div>
+                            <div class="input-wrapper">
+                                <input type="password" id="empNewPw" class="form-input" placeholder="New Password">
+                            </div>
+                            <div class="input-wrapper">
+                                <input type="password" id="empConfirmPw" class="form-input" placeholder="Confirm New Password">
+                            </div>
+                            <div id="empChangePwStatus"></div>
+                            <button class="submit-btn" onclick="submitChangePassword('emp')">Change Password</button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <div class="powered-by">
+        <strong>Powered By</strong> LeoMox IT Solutions
+    </div>
+
+    <div id="forgotModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeForgotPassword()">&times;</span>
+            <div class="modal-header">🔐 Reset Password</div>
+
+            <div id="fpRequestStep">
+                <p style="font-size:13px;color:#666;margin-bottom:16px;text-align:center;">Enter your registered email address and we'll send you a link to reset your password.</p>
+                <div class="input-wrapper">
+                    <input type="email" id="resetEmail" class="form-input" placeholder="Email Address" autocomplete="off">
+                </div>
+                <div id="fpRequestStatus"></div>
+                <button class="submit-btn" onclick="fpSendResetLink()">Send Password Reset Link</button>
+            </div>
+
+            <div id="fpSentStep" class="hidden">
+                <div style="text-align:center;margin-bottom:8px;">
+                    <div style="font-size:40px;">📧</div>
+                    <div style="font-size:15px;font-weight:700;color:#2E7D32;">Check your email</div>
+                    <div style="font-size:13px;color:#888;margin-top:6px;">If an account exists for that email address, a password reset link has been sent. The link expires soon and can only be used once.</div>
+                </div>
+                <button class="submit-btn" onclick="closeForgotPassword()" style="background:linear-gradient(135deg,#1976D2,#0D47A1);">Back to Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESET PASSWORD SCREEN — reached via the emailed link (?token=...&id=...), not from a button -->
+    <div id="resetPasswordScreen" class="screen">
+        <div class="header">
+            <div class="logo-container">
+                <div class="govt-emblem">🏛️</div>
+            </div>
+            <div class="rd-logo">Reset Password</div>
+        </div>
+        <div class="content">
+            <div class="card" style="max-width:420px;margin:40px auto;">
+                <div class="card-header">🔑 Create a New Password</div>
+                <p style="font-size:13px;color:#666;margin-bottom:16px;">
+                    Minimum 8 characters, with an uppercase letter, lowercase letter, number, and special character.
+                </p>
+                <div class="input-wrapper">
+                    <input type="password" id="rpNewPassword" class="form-input" placeholder="New Password" autocomplete="new-password">
+                </div>
+                <div class="input-wrapper">
+                    <input type="password" id="rpConfirmPassword" class="form-input" placeholder="Confirm New Password" autocomplete="new-password">
+                </div>
+                <div id="rpStatus"></div>
+                <button class="submit-btn" onclick="submitTokenReset()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT EMPLOYEE MODAL -->
+    <div id="editEmpModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeEditModal()">
+        <div style="background:white;border-radius:24px;padding:28px 22px 22px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.25);max-height:90vh;overflow-y:auto;">
+            <div style="font-size:20px;font-weight:800;color:#1565C0;margin-bottom:6px;text-align:center;">✏️ Edit Employee</div>
+            <div style="font-size:13px;color:#888;text-align:center;margin-bottom:20px;" id="editEmpSubtitle">Update employee details</div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;">Employee ID</label><input type="text" id="editEmpId" disabled style="width:100%;padding:12px 14px;border:2px solid #E8E8E8;border-radius:12px;font-size:15px;background:#F5F5F5;color:#999;box-sizing:border-box;"/><div style="font-size:11px;color:#AAA;margin-top:4px;">Cannot be changed</div></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;">Full Name *</label><input type="text" id="editEmpName" placeholder="Enter full name" style="width:100%;padding:12px 14px;border:2px solid #E8E8E8;border-radius:12px;font-size:15px;color:#2C3E50;outline:none;box-sizing:border-box;"/></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;">Mobile *</label><input type="tel" id="editEmpMobile" placeholder="10-digit mobile" maxlength="10" style="width:100%;padding:12px 14px;border:2px solid #E8E8E8;border-radius:12px;font-size:15px;color:#2C3E50;outline:none;box-sizing:border-box;"/></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;">Designation *</label><input type="text" id="editEmpDesig" placeholder="e.g. Field Auditor" style="width:100%;padding:12px 14px;border:2px solid #E8E8E8;border-radius:12px;font-size:15px;color:#2C3E50;outline:none;box-sizing:border-box;"/></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;">District *</label><input type="text" id="editEmpDist" placeholder="e.g. Visakhapatnam" style="width:100%;padding:12px 14px;border:2px solid #E8E8E8;border-radius:12px;font-size:15px;color:#2C3E50;outline:none;box-sizing:border-box;"/></div>
+            <div style="margin-bottom:14px;"><label style="display:block;font-size:12px;font-weight:700;color:#555;margin-bottom:5px;text-transform:uppercase;">New Password</label><input type="password" id="editEmpPass" placeholder="Leave blank to keep current" style="width:100%;padding:12px 14px;border:2px solid #E8E8E8;border-radius:12px;font-size:15px;color:#2C3E50;outline:none;box-sizing:border-box;"/><div style="font-size:11px;color:#AAA;margin-top:4px;">Fill only to change password</div></div>
+            <div id="editEmpStatus"></div>
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button onclick="closeEditModal()" style="flex:1;padding:14px;border:2px solid #E0E0E0;border-radius:30px;background:white;color:#666;font-size:15px;font-weight:700;cursor:pointer;">Cancel</button>
+                <button onclick="saveEditEmp()" style="flex:2;padding:14px;border:none;border-radius:30px;background:linear-gradient(135deg,#1976D2 0%,#0D47A1 100%);color:white;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(25,118,210,0.4);">💾 Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeDeleteModal()">&times;</span>
+            <div class="modal-header">⚠️ Delete Employee</div>
+
+            <p style="margin: 20px 0; color: #666;">Are you sure you want to delete this employee?</p>
+            
+            <div id="deleteEmpInfo" style="background: #F9F9F9; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                <div style="font-weight: 700; color: #2C3E50;" id="deleteEmpName"></div>
+                <div style="font-size: 13px; color: #666; margin-top: 5px;" id="deleteEmpDetails"></div>
+            </div>
+
+            <p style="margin: 20px 0; color: #DC2626; font-size: 14px; font-weight: 600;">⚠️ This action cannot be undone. All employee data and face enrollment will be permanently deleted.</p>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="submit-btn" onclick="closeDeleteModal()" style="background: #9CA3AF; flex: 1;">Cancel</button>
+                <button class="submit-btn" onclick="confirmDelete()" style="background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); flex: 1;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;   // { employeeId, name, mobile, role, designation, district, faceEnrolled }
+        let currentRole = null;
+        let modelsLoaded = false;
+        let enrollStream = null;
+        let attStream = null;
+        let currentGPS = null;
+        let recognized = null;
+        let employeeToDelete = null;
+
+        // ══════════════ Backend API wiring ══════════════
+        // Same-origin by default (server.js serves this file and /api/* from one
+        // Express app), so a relative base works both locally and once deployed.
+        const API_BASE = '/api';
+
+        function getToken() { return localStorage.getItem('rdssaat_token'); }
+        function setSession(token, user) {
+            localStorage.setItem('rdssaat_token', token);
+            localStorage.setItem('rdssaat_user', JSON.stringify(user));
+        }
+        function clearSession() {
+            localStorage.removeItem('rdssaat_token');
+            localStorage.removeItem('rdssaat_user');
+        }
+
+        // Thin fetch wrapper: attaches the JWT, parses JSON, and forces a logout
+        // on 401 (expired/invalid token) instead of leaving the UI in a broken state.
+        async function apiFetch(path, options = {}) {
+            const token = getToken();
+            const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            let res;
+            try {
+                res = await fetch(API_BASE + path, { ...options, headers });
+            } catch (netErr) {
+                throw new Error('Network error — check your connection and try again');
+            }
+
+            if (res.status === 401) {
+                clearSession();
+                currentUser = null; currentRole = null;
+                hideAll();
+                document.getElementById('loginScreen').classList.add('active');
+                showMsg('loginStatus', '⏰ Session expired — please log in again', 'error');
+                throw new Error('Session expired');
+            }
+
+            let data;
+            try { data = await res.json(); }
+            catch { throw new Error('Unexpected response from server'); }
+
+            if (!res.ok || data.success === false) {
+                throw new Error(data.message || 'Request failed');
+            }
+            return data;
+        }
+
+        async function loadModels() {
+            try {
+                document.getElementById('loadingModels').classList.remove('hidden');
+                const URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+                await faceapi.nets.tinyFaceDetector.loadFromUri(URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(URL);
+                await faceapi.nets.faceRecognitionNet.loadFromUri(URL);
+                modelsLoaded = true;
+                document.getElementById('loadingModels').classList.add('hidden');
+            } catch(e) { console.error(e); }
+        }
+
+        // Restore an existing session on page load/refresh by validating the
+        // stored token against the backend, rather than trusting stale localStorage.
+        async function restoreSession() {
+            const token = getToken();
+            if (!token) return false;
+            try {
+                const me = await apiFetch('/auth/me');
+                const stored = JSON.parse(localStorage.getItem('rdssaat_user') || '{}');
+                currentUser = { ...stored, ...me.user, employeeId: me.user.employee_id };
+                currentRole = currentUser.role;
+                showDash(currentRole);
+                return true;
+            } catch {
+                clearSession();
+                return false;
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            await loadModels();
+            if (checkForResetLink()) return; // came from an emailed reset link — show that screen only
+            const restored = await restoreSession();
+            if (!restored) initCaptcha();
+        });
+
+        // ══════════════ CAPTCHA ══════════════
+        let captchaCode = '';
+
+        function generateCaptcha() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghjkmnpqrstuvwxyz';
+            captchaCode = Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            drawCaptcha(captchaCode);
+            const inp = document.getElementById('captchaInput');
+            inp.value = '';
+            inp.className = 'captcha-input';
+            document.getElementById('captchaTick').style.display = 'none';
+        }
+
+        function drawCaptcha(text) {
+            const canvas = document.getElementById('captchaCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const W = canvas.offsetWidth || 220;
+            const H = 42;
+            canvas.width = W;
+            canvas.height = H;
+
+            // Background gradient
+            const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+            bgGrad.addColorStop(0, '#EEF2FF');
+            bgGrad.addColorStop(1, '#E8F5E9');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // Noise dots
+            for (let i = 0; i < 80; i++) {
+                ctx.beginPath();
+                ctx.arc(Math.random()*W, Math.random()*H, Math.random()*2, 0, Math.PI*2);
+                ctx.fillStyle = `rgba(${rand(80,180)},${rand(80,180)},${rand(80,180)},${(Math.random()*0.4+0.2).toFixed(2)})`;
+                ctx.fill();
+            }
+
+            // Noise lines
+            for (let i = 0; i < 5; i++) {
+                ctx.beginPath();
+                ctx.moveTo(Math.random()*W, Math.random()*H);
+                ctx.bezierCurveTo(Math.random()*W, Math.random()*H, Math.random()*W, Math.random()*H, Math.random()*W, Math.random()*H);
+                ctx.strokeStyle = `rgba(${rand(100,200)},${rand(100,200)},${rand(100,200)},0.3)`;
+                ctx.lineWidth = Math.random() * 1.5 + 0.5;
+                ctx.stroke();
+            }
+
+            // Draw each character with individual style
+            const colors = ['#1565C0','#B71C1C','#1B5E20','#E65100','#4A148C','#006064','#F57F17','#880E4F'];
+            const charW = W / 7;
+            for (let i = 0; i < text.length; i++) {
+                ctx.save();
+                const x = charW * (i + 0.8);
+                const y = H / 2 + rand(-4, 6);
+                const angle = (Math.random() - 0.5) * 0.45;
+                const size = rand(22, 30);
+                const fonts = ['Arial Black', 'Georgia', 'Courier New', 'Impact', 'Verdana'];
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                ctx.font = `bold ${size}px "${fonts[i % fonts.length]}"`;
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.shadowColor = 'rgba(0,0,0,0.15)';
+                ctx.shadowBlur = 3;
+                ctx.fillText(text[i], 0, 0);
+                ctx.restore();
+            }
+
+            // Top scan-line overlay
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            for (let y = 0; y < H; y += 4) { ctx.fillRect(0, y, W, 2); }
+        }
+
+        function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function validateCaptchaLive() {
+            const inp = document.getElementById('captchaInput');
+            const val = inp.value;
+            const tick = document.getElementById('captchaTick');
+            if (val.length === 0) {
+                inp.className = 'captcha-input';
+                tick.style.display = 'none';
+                return false;
+            }
+            if (val === captchaCode) {
+                inp.className = 'captcha-input valid';
+                tick.textContent = '✅';
+                tick.style.display = 'block';
+                return true;
+            } else {
+                inp.className = 'captcha-input' + (val.length === 6 ? ' invalid' : '');
+                tick.textContent = val.length === 6 ? '❌' : '';
+                tick.style.display = val.length === 6 ? 'block' : 'none';
+                return false;
+            }
+        }
+
+        // Init CAPTCHA after DB is ready
+        function initCaptcha() {
+            generateCaptcha();
+            // Redraw on resize
+            window.addEventListener('resize', () => { if(captchaCode) drawCaptcha(captchaCode); });
+        }
+        // ═════════════════════════════════════
+
+        async function submitLogin() {
+            const id = document.getElementById('empId').value.trim();
+            const pass = document.getElementById('empPassword').value;
+            if (!id || !pass) return showMsg('loginStatus', 'Enter ID and password', 'error');
+
+            // CAPTCHA check
+            const captchaVal = document.getElementById('captchaInput').value || '';
+            if (!captchaVal) { generateCaptcha(); return showMsg('loginStatus', '🔐 Please enter the CAPTCHA code', 'error'); }
+            if (captchaVal !== captchaCode) {
+                generateCaptcha();
+                document.getElementById('captchaInput').value = '';
+                document.getElementById('captchaInput').className = 'captcha-input';
+                document.getElementById('captchaTick').style.display = 'none';
+                return showMsg('loginStatus', '❌ Wrong CAPTCHA — a new code is shown', 'error');
+            }
+
+            // NOTE: login intentionally does NOT depend on modelsLoaded — face
+            // recognition models are only needed for enrollment/attendance capture,
+            // not for authenticating. Gating login on an unrelated CDN script
+            // (face-api.js) meant a slow/blocked CDN could lock every user out
+            // of the app entirely, even though login has nothing to do with it.
+            const submitBtn = document.querySelector('#loginScreen .submit-btn');
+            if (submitBtn) submitBtn.disabled = true;
+            try {
+                const data = await apiFetch('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ employeeId: id, password: pass }),
+                });
+                currentUser = data.user;
+                currentRole = data.user.role;
+                setSession(data.token, data.user);
+                showDash(currentRole);
+            } catch (e) {
+                generateCaptcha(); // fresh captcha on any failed attempt, same as before
+                showMsg('loginStatus', e.message || 'Login failed', 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        }
+
+        // Roles allowed to reach the management-style dashboard. Employee gets the
+        // separate self-service dashboard further down.
+        const DASHBOARD_ROLES = ['admin', 'manager', 'hr'];
+        const ROLE_LABELS = { admin: 'Administrator', manager: 'Manager', hr: 'HR Officer' };
+
+        function showDash(role) {
+            hideAll();
+            if (DASHBOARD_ROLES.includes(role)) {
+                document.getElementById('adminDashboard').classList.add('active');
+                document.getElementById('adminName').textContent = currentUser.name;
+                document.getElementById('adminRoleLabel').textContent = ROLE_LABELS[role] || role;
+                document.getElementById('dashboardTitle').textContent =
+                    role === 'admin' ? 'Admin Dashboard' : role === 'hr' ? 'HR Dashboard' : 'Manager Dashboard';
+                document.getElementById('adminEmpNavLabel').textContent = role === 'manager' ? 'My Team' : 'Employee Management';
+                applyRolePermissions(role);
+                switchView('admin', 'overview');
+                loadAdmin();
+            } else {
+                document.getElementById('employeeDashboard').classList.add('active');
+                document.getElementById('empDisplayName').textContent = currentUser.name;
+                document.getElementById('empDisplayDesig').textContent = currentUser.designation + ' | ' + currentUser.district;
+                document.getElementById('empAvatar').textContent = currentUser.name[0];
+                switchView('employee', 'overview');
+                loadEmployee();
+            }
+        }
+
+        // ══════════════ Sidebar navigation (view switching + mobile off-canvas) ══════════════
+        function switchView(dash, viewId) {
+            document.querySelectorAll(`#${dash}Dashboard .view`).forEach(v => v.classList.remove('active'));
+            const target = document.getElementById(`${dash}View-${viewId}`);
+            if (target) target.classList.add('active');
+            document.querySelectorAll(`#${dash}Dashboard .nav-item`).forEach(n => n.classList.remove('active'));
+            const navItem = document.querySelector(`#${dash}Dashboard .nav-item[data-view="${viewId}"]`);
+            if (navItem) navItem.classList.add('active');
+            closeSidebarMobile(dash);
+
+            if (dash === 'admin') {
+                if (viewId === 'permissions') loadPermissionsMatrix();
+                if (viewId === 'audit') loadAuditLogs();
+                if (viewId === 'employees') populateManagerDropdown();
+            }
+        }
+
+        function toggleSidebarMobile(dash) {
+            document.getElementById(`${dash}Sidebar`).classList.toggle('open');
+            document.getElementById(`${dash}SidebarOverlay`).classList.toggle('active');
+        }
+        function closeSidebarMobile(dash) {
+            document.getElementById(`${dash}Sidebar`)?.classList.remove('open');
+            document.getElementById(`${dash}SidebarOverlay`)?.classList.remove('active');
+        }
+
+        // Client-side UI gating to match the server-side rules in authmw.js/employees.js:
+        //   admin   → full access (create any role, edit, delete, enroll faces)
+        //   hr      → can add/edit plain employees + enroll faces, but not assign manager/hr/admin
+        //   manager → read-only: stats + employee list + CSV export, no add/edit/delete/enroll
+        // The server enforces this regardless — this just keeps the UI from offering
+        // buttons/nav items that would only come back as a 403.
+        function applyRolePermissions(role) {
+            const addCard = document.getElementById('addEmpCard');
+            const enrollCard = document.getElementById('enrollFaceCard');
+            const roleWrapper = document.getElementById('empRoleWrapper');
+            const roleSelect = document.getElementById('empRole');
+
+            if (role === 'manager') {
+                addCard.classList.add('hidden');
+                enrollCard.classList.add('hidden');
+            } else {
+                addCard.classList.remove('hidden');
+                enrollCard.classList.remove('hidden');
+            }
+
+            if (role === 'admin') {
+                roleWrapper.classList.remove('hidden');
+            } else {
+                // hr (or anyone else who reaches here) can only ever create employees
+                roleSelect.value = 'employee';
+                roleWrapper.classList.add('hidden');
+            }
+
+            // Hide sidebar nav items this role has no backend access to at all
+            // (data-roles is a whitelist; items without it are visible to everyone).
+            document.querySelectorAll('#adminDashboard .nav-item[data-roles]').forEach(item => {
+                const allowed = item.dataset.roles.split(',');
+                item.classList.toggle('hidden', !allowed.includes(role));
+            });
+        }
+
+        async function loadAdmin() {
+            const emps = await getAllEmp();
+            const faces = await getAllFaces();
+            document.getElementById('totalEmp').textContent = emps.length;
+            document.getElementById('enrolledFaces').textContent = faces.length;
+            displayEmpList(emps, faces, currentRole);
+            updateEnrollSel(emps);
+            loadLeaveRequests();
+        }
+
+        function fmtDate(d) {
+            if (!d) return '';
+            const date = new Date(d);
+            return isNaN(date) ? d : date.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+        }
+
+        // ══════════════ Leave management (admin/manager/hr view) ══════════════
+        async function loadLeaveRequests() {
+            const status = document.getElementById('leaveStatusFilter')?.value || 'pending';
+            const path = currentRole === 'manager' ? '/leaves/team' : '/leaves';
+            try {
+                const data = await apiFetch(path + (status ? `?status=${status}` : ''));
+                const list = document.getElementById('leaveRequestsList');
+                if (!data.data.length) { list.innerHTML = '<p style="text-align:center;opacity:0.7;padding:16px;">No requests</p>'; return; }
+                list.innerHTML = data.data.map(l => {
+                    const canDecide = l.status === 'pending';
+                    return `
+                    <div class="employee-item" style="display:block;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">
+                            <div>
+                                <strong>${l.employee_name}</strong>
+                                <div style="font-size:12px;opacity:0.7;">${l.leave_type} • ${fmtDate(l.from_date)} → ${fmtDate(l.to_date)} (${l.number_of_days}d)</div>
+                            </div>
+                            <span class="badge ${l.status==='approved'?'badge-success':l.status==='rejected'?'badge-error':'badge-warning'}">${l.status}</span>
+                        </div>
+                        <div style="font-size:13px;opacity:0.8;margin-bottom:8px;">📝 ${l.reason}${l.rejection_reason ? '<br>❌ Rejected: ' + l.rejection_reason : ''}</div>
+                        ${canDecide ? `
+                        <div style="display:flex;gap:8px;">
+                            <button style="flex:1;background:linear-gradient(135deg,#43A047,#2E7D32);color:white;border:none;border-radius:20px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;" onclick="approveLeave(${l.id})">✓ Approve</button>
+                            <button style="flex:1;background:linear-gradient(135deg,#E53935,#C62828);color:white;border:none;border-radius:20px;padding:8px;font-size:12px;font-weight:700;cursor:pointer;" onclick="openRejectLeave(${l.id})">✕ Reject</button>
+                        </div>` : ''}
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                console.error(e);
+                document.getElementById('leaveRequestsList').innerHTML = `<p style="text-align:center;color:#C62828;padding:16px;">${e.message}</p>`;
+            }
+        }
+
+        async function approveLeave(id) {
+            try {
+                await apiFetch(`/leaves/${id}/approve`, { method:'PATCH' });
+                loadLeaveRequests();
+            } catch (e) { alert(e.message || 'Could not approve'); }
+        }
+
+        let leaveIdToReject = null;
+        function openRejectLeave(id) {
+            leaveIdToReject = id;
+            document.getElementById('rejectReason').value = '';
+            document.getElementById('rejectLeaveStatus').innerHTML = '';
+            document.getElementById('rejectLeaveModal').classList.add('active');
+        }
+        async function confirmRejectLeave() {
+            const reason = document.getElementById('rejectReason').value.trim();
+            if (!reason) return showMsg('rejectLeaveStatus', '⚠️ Reason required', 'error');
+            try {
+                await apiFetch(`/leaves/${leaveIdToReject}/reject`, { method:'PATCH', body: JSON.stringify({ reason }) });
+                document.getElementById('rejectLeaveModal').classList.remove('active');
+                loadLeaveRequests();
+            } catch (e) { showMsg('rejectLeaveStatus', e.message || 'Could not reject', 'error'); }
+        }
+
+        async function addEmp() {
+            const name = document.getElementById('empName').value.trim();
+            const mobile = document.getElementById('empMobile').value.trim();
+            const id = document.getElementById('newEmpId').value.trim();
+            const email = document.getElementById('empEmail').value.trim();
+            const desig = document.getElementById('empDesig').value.trim();
+            const dist = document.getElementById('empDist').value.trim();
+            const pass = document.getElementById('empPass').value;
+            const role = document.getElementById('empRole').value || 'employee';
+            const managerId = document.getElementById('empManagerId').value || null;
+            if (!name || !mobile || !id || !email || !desig || !dist || !pass) return showMsg('addEmpStatus', 'All fields including email are required', 'error');
+            try {
+                await apiFetch('/employees', {
+                    method: 'POST',
+                    body: JSON.stringify({ employeeId: id, name, mobile, email, password: pass, designation: desig, district: dist, role, managerId }),
+                });
+                showMsg('addEmpStatus', '✓ Added!', 'success');
+                ['empName', 'empMobile', 'newEmpId', 'empEmail', 'empDesig', 'empDist', 'empPass'].forEach(i => document.getElementById(i).value = '');
+                document.getElementById('empManagerId').value = '';
+                loadAdmin();
+            } catch (e) { showMsg('addEmpStatus', e.message || 'Failed', 'error'); }
+        }
+
+        // Populate the "Assign Manager" dropdown on the Add Staff form. Admin-only
+        // concept (managers are created by admin), but harmless to show to hr too
+        // since the backend will reject hr trying to actually set a manager role.
+        async function populateManagerDropdown() {
+            try {
+                const data = await apiFetch('/employees?role=manager');
+                const sel = document.getElementById('empManagerId');
+                const current = sel.value;
+                sel.innerHTML = '<option value="">-- Assign Manager (optional) --</option>' +
+                    data.data.map(m => `<option value="${m.employee_id}">${m.name} (${m.employee_id})</option>`).join('');
+                sel.value = current;
+            } catch (e) { console.error('Could not load managers:', e); }
+        }
+
+        // ══════════════ Roles & Permissions (admin) ══════════════
+        const PERMISSION_ACTIONS = ['can_view','can_create','can_edit','can_delete','can_approve','can_reject','can_export'];
+        const ACTION_LABELS = { can_view:'View', can_create:'Create', can_edit:'Edit', can_delete:'Delete', can_approve:'Approve', can_reject:'Reject', can_export:'Export' };
+
+        async function loadPermissionsMatrix() {
+            try {
+                const data = await apiFetch('/admin/permissions');
+                const rows = data.data;
+                const roles = [...new Set(rows.map(r => r.role))];
+                let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr><th style="text-align:left;padding:8px;">Role</th><th style="text-align:left;padding:8px;">Module</th>' +
+                    PERMISSION_ACTIONS.map(a => `<th style="padding:8px;">${ACTION_LABELS[a]}</th>`).join('') + '</tr></thead><tbody>';
+                rows.forEach(r => {
+                    const isAdmin = r.role === 'admin';
+                    html += `<tr style="border-top:1px solid #eee;"><td style="padding:8px;font-weight:700;text-transform:capitalize;">${r.role}</td><td style="padding:8px;text-transform:capitalize;">${r.module}</td>`;
+                    PERMISSION_ACTIONS.forEach(a => {
+                        html += `<td style="text-align:center;padding:8px;"><input type="checkbox" ${r[a] ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} onchange="updatePermission('${r.role}','${r.module}','${a}',this.checked)"></td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                document.getElementById('permissionsMatrix').innerHTML = html;
+            } catch (e) {
+                document.getElementById('permissionsMatrix').innerHTML = `<p style="color:#C62828;">${e.message}</p>`;
+            }
+        }
+
+        async function updatePermission(role, module, action, value) {
+            try {
+                await apiFetch(`/admin/permissions/${role}/${module}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ [action]: value }),
+                });
+            } catch (e) {
+                alert(e.message || 'Could not update permission');
+                loadPermissionsMatrix(); // revert the checkbox to server truth on failure
+            }
+        }
+
+        // ══════════════ Audit Logs (admin) ══════════════
+        async function loadAuditLogs() {
+            try {
+                const data = await apiFetch('/admin/audit-logs?limit=100');
+                const list = document.getElementById('auditLogList');
+                if (!data.data.length) { list.innerHTML = '<p style="text-align:center;opacity:0.7;padding:16px;">No activity yet</p>'; return; }
+                list.innerHTML = data.data.map(a => `
+                    <div class="employee-item" style="display:block;">
+                        <div style="display:flex;justify-content:space-between;">
+                            <strong>${a.action.replace(/_/g,' ')}</strong>
+                            <span style="font-size:12px;opacity:0.6;">${new Date(a.created_at).toLocaleString()}</span>
+                        </div>
+                        <div style="font-size:12px;opacity:0.7;">by ${a.employee_name || a.employee_id || 'system'} • ${a.module}${a.record_id ? ' • #' + a.record_id : ''}</div>
+                    </div>`).join('');
+            } catch (e) {
+                document.getElementById('auditLogList').innerHTML = `<p style="color:#C62828;">${e.message}</p>`;
+            }
+        }
+
+        // ══════════════ Change Password (both dashboards) ══════════════
+        async function submitChangePassword(prefix) {
+            const current = document.getElementById(`${prefix}CurrentPw`).value;
+            const next = document.getElementById(`${prefix}NewPw`).value;
+            const confirm = document.getElementById(`${prefix}ConfirmPw`).value;
+            const statusId = `${prefix}ChangePwStatus`;
+            if (!current || !next) return showMsg(statusId, '⚠️ All fields required', 'error');
+            if (next !== confirm) return showMsg(statusId, '❌ New passwords do not match', 'error');
+            try {
+                await apiFetch(`/employees/${encodeURIComponent(currentUser.employeeId)}/change-password`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ currentPassword: current, newPassword: next }),
+                });
+                showMsg(statusId, '✅ Password changed successfully', 'success');
+                [`${prefix}CurrentPw`, `${prefix}NewPw`, `${prefix}ConfirmPw`].forEach(id => document.getElementById(id).value = '');
+            } catch (e) { showMsg(statusId, e.message || 'Failed', 'error'); }
+        }
+
+        function showDeleteConfirm(empId, empName, empDesig, empDist) {
+            employeeToDelete = empId;
+            document.getElementById('deleteEmpName').textContent = empName;
+            document.getElementById('deleteEmpDetails').textContent = `${empId} | ${empDesig} | ${empDist}`;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            employeeToDelete = null;
+        }
+
+        let employeeToEdit = null;
+        async function showEditModal(empId) {
+            // The roster is already loaded client-side from the last /employees fetch,
+            // so find it there instead of firing a redundant request.
+            const emps = await getAllEmp();
+            const emp = emps.find(e => e.employeeId === empId);
+            if(!emp) return;
+            employeeToEdit=emp;
+            document.getElementById('editEmpId').value=emp.employeeId;
+            document.getElementById('editEmpName').value=emp.name;
+            document.getElementById('editEmpMobile').value=emp.mobile;
+            document.getElementById('editEmpDesig').value=emp.designation;
+            document.getElementById('editEmpDist').value=emp.district;
+            document.getElementById('editEmpPass').value='';
+            document.getElementById('editEmpSubtitle').textContent=emp.name+' ('+emp.employeeId+')';
+            document.getElementById('editEmpStatus').innerHTML='';
+            document.getElementById('editEmpModal').style.display='flex';
+        }
+        function closeEditModal() {
+            document.getElementById('editEmpModal').style.display='none';
+            employeeToEdit=null;
+        }
+        async function saveEditEmp() {
+            const name=document.getElementById('editEmpName').value.trim();
+            const mobile=document.getElementById('editEmpMobile').value.trim();
+            const desig=document.getElementById('editEmpDesig').value.trim();
+            const dist=document.getElementById('editEmpDist').value.trim();
+            const newPass=document.getElementById('editEmpPass').value;
+            if(!name) return showMsg('editEmpStatus','⚠️ Name required','error');
+            if(!mobile||mobile.length!==10||!/^\d+$/.test(mobile)) return showMsg('editEmpStatus','⚠️ Valid 10-digit mobile needed','error');
+            if(!desig) return showMsg('editEmpStatus','⚠️ Designation required','error');
+            if(!dist) return showMsg('editEmpStatus','⚠️ District required','error');
+            try {
+                const body = { name, mobile, designation: desig, district: dist };
+                if (newPass) body.password = newPass;
+                await apiFetch('/employees/' + encodeURIComponent(employeeToEdit.employeeId), {
+                    method: 'PUT',
+                    body: JSON.stringify(body),
+                });
+                showMsg('editEmpStatus','✅ Saved successfully!','success');
+                setTimeout(()=>{closeEditModal();loadAdmin();},900);
+            } catch(e){showMsg('editEmpStatus', e.message || '❌ Save failed','error');}
+        }
+
+        async function confirmDelete() {
+            if (!employeeToDelete) return;
+            try {
+                await apiFetch('/employees/' + encodeURIComponent(employeeToDelete), { method: 'DELETE' });
+                closeDeleteModal();
+                loadAdmin();
+            } catch(e) {
+                console.error(e);
+                alert(e.message || 'Delete failed');
+            }
+        }
+
+        function updateEnrollSel(emps) {
+            const sel = document.getElementById('enrollSel');
+            sel.innerHTML = '<option value="">-- Select --</option>';
+            emps.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.employeeId;
+                opt.textContent = e.name + ' (' + e.employeeId + ')';
+                sel.appendChild(opt);
+            });
+            sel.onchange = () => {
+                document.getElementById('startEnrollBtn').disabled = !sel.value;
+            };
+        }
+
+        async function startEnroll() {
+            if (!modelsLoaded) {
+                showMsg('enrollStatus', '⏳ Face recognition models still loading — retrying...', 'info');
+                await loadModels();
+                if (!modelsLoaded) return showMsg('enrollStatus', '❌ Could not load face recognition models. Check your internet connection and try again.', 'error');
+            }
+            try {
+                enrollStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+                document.getElementById('enrollVideo').srcObject = enrollStream;
+                document.getElementById('enrollFrame').classList.remove('hidden');
+                document.getElementById('enrollGuide').classList.remove('hidden');
+                document.getElementById('captureEnrollBtn').classList.remove('hidden');
+                document.getElementById('startEnrollBtn').classList.add('hidden');
+                showMsg('enrollStatus', '📸 Position face', 'info');
+            } catch(err) {
+                if (err.name==='NotAllowedError'||err.name==='PermissionDeniedError') showMsg('enrollStatus','🚫 Camera denied — allow in browser settings & reload','error');
+                else if (err.name==='NotFoundError') showMsg('enrollStatus','📷 No camera found on this device','error');
+                else showMsg('enrollStatus','⚠️ '+(err.message||err.name),'error');
+            }
+        }
+
+        async function captureEnroll() {
+            const id = document.getElementById('enrollSel').value;
+            const video = document.getElementById('enrollVideo');
+            try {
+                const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                if (!det) return showMsg('enrollStatus', '❌ No face', 'error');
+                await apiFetch('/faces/enroll', {
+                    method: 'POST',
+                    body: JSON.stringify({ employeeId: id, descriptor: Array.from(det.descriptor) }),
+                });
+                stopEnroll();
+                showMsg('enrollStatus', '✓ Enrolled!', 'success');
+                setTimeout(() => {
+                    document.getElementById('enrollSel').value = '';
+                    document.getElementById('enrollStatus').innerHTML = '';
+                    loadAdmin();
+                }, 2000);
+            } catch (e) { showMsg('enrollStatus', e.message || 'Failed', 'error'); }
+        }
+
+        function stopEnroll() {
+            if (enrollStream) {
+                enrollStream.getTracks().forEach(t => t.stop());
+                enrollStream = null;
+            }
+            document.getElementById('enrollFrame').classList.add('hidden');
+            document.getElementById('enrollGuide').classList.add('hidden');
+            document.getElementById('captureEnrollBtn').classList.add('hidden');
+            document.getElementById('startEnrollBtn').classList.remove('hidden');
+        }
+
+        async function loadEmployee() {
+            const att = await getAtt(currentUser.employeeId);
+            displayAtt(att);
+            loadEmployeeLeaveData();
+        }
+
+        // ══════════════ Leave management (employee self-service) ══════════════
+        async function loadEmployeeLeaveData() {
+            try {
+                const types = await apiFetch('/leaves/types');
+                const sel = document.getElementById('leaveType');
+                sel.innerHTML = '<option value="">-- Leave Type --</option>' +
+                    types.data.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+                const balance = await apiFetch('/leaves/balance');
+                document.getElementById('leaveBalanceDisplay').innerHTML = balance.data.map(b => `
+                    <div style="flex:1;min-width:100px;background:#F3E5F5;border-radius:12px;padding:10px;text-align:center;">
+                        <div style="font-size:20px;font-weight:800;color:#6A1B9A;">${b.remaining}</div>
+                        <div style="font-size:11px;color:#8E24AA;">${b.leaveType}</div>
+                    </div>`).join('');
+
+                const my = await apiFetch('/leaves/my');
+                const list = document.getElementById('myLeaveList');
+                if (!my.data.length) { list.innerHTML = '<p style="text-align:center;opacity:0.7;padding:12px;">No leave requests yet</p>'; return; }
+                list.innerHTML = my.data.map(l => `
+                    <div class="employee-item" style="display:block;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong>${l.leave_type}</strong>
+                                <div style="font-size:12px;opacity:0.7;">${fmtDate(l.from_date)} → ${fmtDate(l.to_date)} (${l.number_of_days}d)</div>
+                            </div>
+                            <span class="badge ${l.status==='approved'?'badge-success':l.status==='rejected'||l.status==='cancelled'?'badge-error':'badge-warning'}">${l.status}</span>
+                        </div>
+                        ${l.status==='pending' ? `<button style="margin-top:8px;background:none;border:1px solid #C62828;color:#C62828;border-radius:16px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;" onclick="cancelMyLeave(${l.id})">Cancel Request</button>` : ''}
+                    </div>`).join('');
+            } catch (e) { console.error(e); }
+        }
+
+        async function applyLeave() {
+            const leaveTypeId = document.getElementById('leaveType').value;
+            const fromDate = document.getElementById('leaveFrom').value;
+            const toDate = document.getElementById('leaveTo').value;
+            const reason = document.getElementById('leaveReason').value.trim();
+            if (!leaveTypeId || !fromDate || !toDate || !reason)
+                return showMsg('leaveApplyStatus', '⚠️ All fields are required', 'error');
+            try {
+                await apiFetch('/leaves', {
+                    method: 'POST',
+                    body: JSON.stringify({ leaveTypeId: Number(leaveTypeId), fromDate, toDate, reason }),
+                });
+                showMsg('leaveApplyStatus', '✓ Leave request submitted', 'success');
+                ['leaveFrom','leaveTo','leaveReason'].forEach(id => document.getElementById(id).value = '');
+                document.getElementById('leaveType').value = '';
+                loadEmployeeLeaveData();
+            } catch (e) { showMsg('leaveApplyStatus', e.message || 'Failed', 'error'); }
+        }
+
+        async function cancelMyLeave(id) {
+            try {
+                await apiFetch(`/leaves/${id}/cancel`, { method:'PATCH' });
+                loadEmployeeLeaveData();
+            } catch (e) { alert(e.message || 'Could not cancel'); }
+        }
+
+        // Live day-count preview as From/To dates change.
+        document.addEventListener('DOMContentLoaded', () => {
+            const fromEl = document.getElementById('leaveFrom');
+            const toEl = document.getElementById('leaveTo');
+            const update = () => {
+                const preview = document.getElementById('leaveDaysPreview');
+                if (!fromEl?.value || !toEl?.value || !preview) return;
+                const days = Math.floor((new Date(toEl.value) - new Date(fromEl.value)) / 86400000) + 1;
+                preview.textContent = days > 0 ? `${days} day(s)` : 'Invalid date range';
+            };
+            fromEl?.addEventListener('change', update);
+            toEl?.addEventListener('change', update);
+        });
+
+        async function startRec() {
+            const v = document.getElementById('village').value.trim();
+            const m = document.getElementById('mandal').value.trim();
+            const a = document.getElementById('auditType').value;
+            const d = document.getElementById('attDesignation').value.trim();
+            if (!v || !m || !a) return showMsg('attStatus', 'Fill all fields', 'error');
+            if (!d) return showMsg('attStatus', '⚠️ Please enter Designation', 'error');
+            if (!modelsLoaded) {
+                showMsg('attStatus', '⏳ Face recognition models still loading — retrying...', 'info');
+                await loadModels();
+                if (!modelsLoaded) return showMsg('attStatus', '❌ Could not load face recognition models. Check your internet connection and try again.', 'error');
+            }
+            try {
+                showMsg('attStatus', '📍 Getting GPS...', 'info');
+                const pos = await new Promise((res, rej) => {
+                    navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 30000 });
+                });
+                currentGPS = {
+                    lat: pos.coords.latitude.toFixed(6),
+                    lng: pos.coords.longitude.toFixed(6),
+                    accuracy: Math.round(pos.coords.accuracy),
+                    timestamp: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                };
+                document.getElementById('gpsDisplay').innerHTML = `<div class="gps-info">📍 ${currentGPS.lat}, ${currentGPS.lng}<br>📏 ${currentGPS.accuracy}m<br>🕐 ${currentGPS.timestamp}</div>`;
+                showMsg('attStatus', '📷 Starting camera...', 'info');
+                attStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+                const video = document.getElementById('attVideo');
+                video.srcObject = attStream;
+                document.getElementById('attFrame').classList.remove('hidden');
+                document.getElementById('startRecBtn').classList.add('hidden');
+                video.onloadedmetadata = () => setTimeout(() => recognizeFace(video), 1000);
+            } catch(err) {
+                if (err.code!==undefined) { const m=err.code===1?'📍 Location denied':err.code===2?'📍 Location unavailable':'📍 Location timed out'; return showMsg('attStatus',m,'error'); }
+                if (err.name==='NotAllowedError'||err.name==='PermissionDeniedError') showMsg('attStatus','🚫 Camera denied — allow in browser settings & reload','error');
+                else if (err.name==='NotFoundError') showMsg('attStatus','📷 No camera found on device','error');
+                else showMsg('attStatus','⚠️ '+(err.message||err.name),'error');
+            }
+        }
+
+        let lastMatchScore = null;
+
+        async function recognizeFace(video) {
+            try {
+                const det = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+                if (!det) {
+                    showMsg('attStatus', '👤 Position face...', 'info');
+                    setTimeout(() => recognizeFace(video), 1000);
+                    return;
+                }
+                // Descriptors are served from the backend now, not IndexedDB.
+                // The current /api/faces route returns everyone's descriptor, so we
+                // filter to our own record client-side (matches prior behavior of
+                // only ever comparing against your own enrolled face).
+                let faces;
+                try { faces = (await apiFetch('/faces')).data; }
+                catch (e) { stopAtt(); return showMsg('attStatus', e.message || 'Could not load face data', 'error'); }
+                const face = faces.find(f => f.employeeId === currentUser.employeeId);
+                if (!face) {
+                    stopAtt();
+                    return showMsg('attStatus', '❌ Not enrolled', 'error');
+                }
+                const dist = faceapi.euclideanDistance(det.descriptor, new Float32Array(face.descriptor));
+                const match = Math.max(0, ((1 - dist) * 100)).toFixed(1);
+                lastMatchScore = parseFloat(match);
+                if (lastMatchScore >= 70) {
+                    recognized = currentUser;
+                    stopAtt();
+                    document.getElementById('matchResult').innerHTML = `
+                        <div class="match-result success">
+                            <div class="match-icon">✓</div>
+                            <div class="match-score">Match: ${match}%</div>
+                            <div style="font-size:13px;margin-top:4px;">${currentUser.name}</div>
+                            <div style="font-size:11px;color:#4CAF50;margin-top:2px;">≥ 70% threshold passed ✅</div>
+                        </div>`;
+                    document.getElementById('matchResult').classList.remove('hidden');
+                    document.getElementById('notesGrp').classList.remove('hidden');
+                    document.getElementById('submitAttBtn').classList.remove('hidden');
+                    showMsg('attStatus', `✓ Face verified — ${match}% match`, 'success');
+                } else {
+                    stopAtt();
+                    showMsg('attStatus', `❌ Face mismatch — ${match}% (need ≥ 70%)`, 'error');
+                    setTimeout(() => document.getElementById('startRecBtn').classList.remove('hidden'), 3000);
+                }
+            } catch { setTimeout(() => recognizeFace(video), 1000); }
+        }
+
+        function stopAtt() {
+            if (attStream) {
+                attStream.getTracks().forEach(t => t.stop());
+                attStream = null;
+            }
+            document.getElementById('attFrame').classList.add('hidden');
+        }
+
+        async function submitAtt() {
+            const v = document.getElementById('village').value.trim();
+            const m = document.getElementById('mandal').value.trim();
+            const a = document.getElementById('auditType').value;
+            const n = document.getElementById('attNotes').value.trim();
+            const d = document.getElementById('attDesignation').value.trim() || currentUser.designation;
+            try {
+                await apiFetch('/attendance', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        designation: d,
+                        village: v, mandal: m, auditType: a, notes: n,
+                        displayTime: currentGPS.timestamp,
+                        gps: currentGPS,
+                        faceVerified: true,
+                        faceScore: lastMatchScore,
+                    }),
+                });
+                showMsg('attStatus', '✓ Submitted!', 'success');
+                setTimeout(() => {
+                    ['village', 'mandal', 'auditType', 'attNotes', 'attDesignation'].forEach(i => document.getElementById(i).value = '');
+                    document.getElementById('gpsDisplay').innerHTML = '';
+                    document.getElementById('matchResult').classList.add('hidden');
+                    document.getElementById('notesGrp').classList.add('hidden');
+                    document.getElementById('submitAttBtn').classList.add('hidden');
+                    document.getElementById('startRecBtn').classList.remove('hidden');
+                    currentGPS = null;
+                    recognized = null;
+                    lastMatchScore = null;
+                    document.getElementById('attStatus').innerHTML = '';
+                    loadEmployee();
+                }, 2000);
+            } catch (e) { showMsg('attStatus', e.message || 'Failed', 'error'); }
+        }
+
+        // ══════════════ FORGOT PASSWORD — EMAIL LINK (no OTP anywhere) ══════════════
+        function showForgotPassword() {
+            document.getElementById('forgotModal').classList.add('active');
+        }
+
+        function closeForgotPassword() {
+            document.getElementById('forgotModal').classList.remove('active');
+            document.getElementById('fpSentStep').classList.add('hidden');
+            document.getElementById('fpRequestStep').classList.remove('hidden');
+            document.getElementById('resetEmail').value = '';
+            document.getElementById('fpRequestStatus').innerHTML = '';
+        }
+
+        async function fpSendResetLink() {
+            const email = document.getElementById('resetEmail').value.trim();
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+                return showMsg('fpRequestStatus', '⚠️ Enter a valid email address', 'error');
+            try {
+                await apiFetch('/auth/forgot-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ email }),
+                });
+                // Deliberately generic regardless of whether the email exists —
+                // matches the backend's response, so this screen can't be used
+                // to figure out which emails are registered.
+                document.getElementById('fpRequestStep').classList.add('hidden');
+                document.getElementById('fpSentStep').classList.remove('hidden');
+            } catch (e) {
+                showMsg('fpRequestStatus', '❌ ' + e.message, 'error');
+            }
+        }
+
+        // Reset-password screen: reached via the emailed link, e.g.
+        //   https://your-domain.com/reset-password?token=...&id=EMP001
+        // Detected from the URL on page load — see window.addEventListener('load', ...).
+        function checkForResetLink() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            const id = params.get('id');
+            if (token && id) {
+                hideAll();
+                document.getElementById('resetPasswordScreen').classList.add('active');
+                document.getElementById('resetPasswordScreen').dataset.token = token;
+                document.getElementById('resetPasswordScreen').dataset.employeeId = id;
+                return true;
+            }
+            return false;
+        }
+
+        async function submitTokenReset() {
+            const screen = document.getElementById('resetPasswordScreen');
+            const token = screen.dataset.token;
+            const employeeId = screen.dataset.employeeId;
+            const newPassword = document.getElementById('rpNewPassword').value;
+            const confirmPassword = document.getElementById('rpConfirmPassword').value;
+
+            if (!newPassword) return showMsg('rpStatus', '⚠️ Enter a new password', 'error');
+            if (newPassword !== confirmPassword) return showMsg('rpStatus', '❌ Passwords do not match', 'error');
+
+            try {
+                await apiFetch('/auth/reset-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ employeeId, token, newPassword }),
+                });
+                showMsg('rpStatus', '✅ Password successfully changed. Redirecting to login…', 'success');
+                setTimeout(() => {
+                    // Clear the token from the URL so it can't be resubmitted via back/forward.
+                    window.history.replaceState({}, '', window.location.pathname);
+                    hideAll();
+                    document.getElementById('loginScreen').classList.add('active');
+                }, 1800);
+            } catch (e) {
+                showMsg('rpStatus', '❌ ' + e.message, 'error');
+            }
+        }
+        // ════════════════════════════════════════════
+
+        async function downloadExcel() {
+            try {
+                // A plain <a href="/api/...">  can't carry the Authorization header,
+                // so fetch the CSV ourselves (with the JWT attached) and download the blob.
+                const token = getToken();
+                const res = await fetch(API_BASE + '/attendance/export', {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+                });
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body.message || 'Download failed');
+                }
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'RD-SSAAT-Attendance-' + new Date().toISOString().split('T')[0] + '.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error(e);
+                alert(e.message || 'Download failed');
+            }
+        }
+
+        function hideAll() {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        }
+
+        function showMsg(id, msg, type) {
+            const el = document.getElementById(id);
+            if (!msg) { el.innerHTML = ''; return; }
+            el.innerHTML = `<div class="status-message status-${type}">${msg}</div>`;
+        }
+
+        // Cache of the last fetched roster, keyed by employeeId, so showEditModal
+        // doesn't need a redundant round trip.
+        let empCache = [];
+
+        async function getAllEmp() {
+            const data = await apiFetch('/employees?role=employee');
+            // Server field is employee_id (snake_case); normalize to employeeId for
+            // the rest of this file, which was written against the IndexedDB shape.
+            empCache = data.data.map(e => ({
+                employeeId: e.employee_id,
+                name: e.name,
+                mobile: e.mobile,
+                designation: e.designation,
+                district: e.district,
+                role: e.role,
+                faceEnrolled: e.face_enrolled,
+            }));
+            return empCache;
+        }
+
+        async function getAllFaces() {
+            const data = await apiFetch('/faces');
+            return data.data; // already { employeeId, name, descriptor }
+        }
+
+        async function getAtt(id) {
+            const data = await apiFetch('/attendance/my');
+            // Map snake_case DB columns to the shape displayAtt() expects.
+            return data.data.map(r => ({
+                village: r.village,
+                mandal: r.mandal,
+                auditType: r.audit_type,
+                notes: r.notes,
+                displayTime: r.display_time,
+                gps: { lat: r.gps_lat, lng: r.gps_lng, accuracy: r.gps_accuracy },
+            }));
+        }
+
+        function displayEmpList(emps, faces, role) {
+            const c = document.getElementById('empList');
+            if (!emps.length) { c.innerHTML = '<p style="text-align:center;opacity:0.7;padding:20px;">No employees</p>'; return; }
+            const canManage = role !== 'manager'; // manager is read-only; admin/hr can edit+delete
+            c.innerHTML = emps.map(e => {
+                const enrolled = faces.some(f => f.employeeId === e.employeeId);
+                return `
+                    <div class="employee-item">
+                        <div class="employee-info">
+                            <div class="employee-name">${e.name}</div>
+                            <div class="employee-id">${e.employeeId} | ${e.designation} | ${e.district}</div>
+                        </div>
+                        <div class="employee-actions">
+                            <span class="badge ${enrolled ? 'badge-success' : 'badge-warning'}">${enrolled ? '✓ Enrolled' : 'Pending'}</span>
+                            ${canManage ? `<button style="background:linear-gradient(135deg,#1976D2,#1565C0);color:white;border:none;border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(25,118,210,0.3);" onclick="showEditModal('${e.employeeId}')">✏️ Edit</button>
+                            <button class="delete-btn" onclick="showDeleteConfirm('${e.employeeId}', '${e.name}', '${e.designation}', '${e.district}')">🗑️ Delete</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function displayAtt(recs) {
+            const c = document.getElementById('attHistory');
+            if (!recs.length) { c.innerHTML = '<p style="text-align:center;opacity:0.7;padding:20px;">No records</p>'; return; }
+            c.innerHTML = recs.slice(0,10).map(r => `<div class="employee-item" style="display:block;"><div style="display:flex;justify-content:space-between;margin-bottom:8px;"><strong>${r.displayTime}</strong><span class="badge badge-success">✓</span></div><div style="font-size:13px;opacity:0.8;line-height:1.6;">📍 ${r.village}, ${r.mandal}<br>🏛️ ${r.auditType}<br>🗺️ ${r.gps.lat}, ${r.gps.lng}<br>${r.notes ? '📝 ' + r.notes : ''}</div></div>`).join('');
+        }
+
+        function logout() {
+            stopEnroll();
+            stopAtt();
+            currentUser = null;
+            currentRole = null;
+            clearSession();
+            hideAll();
+            document.getElementById('loginScreen').classList.add('active');
+            document.getElementById('empId').value = '';
+            document.getElementById('empPassword').value = '';
+            generateCaptcha();
+        }
+
+        function refreshData() {
+            showMsg('loginStatus', 'Refreshing...', 'info');
+            setTimeout(() => {
+                showMsg('loginStatus', '✓ Done!', 'success');
+                setTimeout(() => document.getElementById('loginStatus').innerHTML = '', 2000);
+            }, 1500);
+        }
+    </script>
+</body>
+</html>

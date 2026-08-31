@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: rdssaat-app
+    runtime: node
+    region: singapore
+    plan: free
+    branch: main
+    buildCommand: npm install && node migrate.js
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: OTP_EXPIRY_MINUTES
+        value: "5"
+      - key: ADMIN_ID
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Administrator
+      - key: ADMIN_MOBILE
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"
