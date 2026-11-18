@@ -926,6 +926,26 @@
                                 <button class="submit-btn" onclick="addEmp()" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">Add Staff</button>
                             </div>
 
+                            <div class="card" id="bulkUploadCard">
+                                <div class="card-header">📤 Bulk Upload (Excel)</div>
+                                <p style="font-size:12px;color:#888;margin-bottom:14px;line-height:1.5;">Download the template, fill one employee per row, then upload it (.xlsx or .csv, up to 200 rows). Employee IDs that already exist are skipped, so you can safely re-upload a corrected file.</p>
+
+                                <button class="submit-btn" onclick="downloadEmpTemplate()" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); margin-bottom: 14px;">📥 Download Template</button>
+
+                                <input type="file" id="bulkFile" accept=".xlsx,.csv" style="width:100%;padding:12px 14px;border:2px dashed #cfcfcf;border-radius:16px;background:#fafafa;font-size:13px;margin-bottom:12px;">
+
+                                <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#555;margin:0 4px 14px;cursor:pointer;">
+                                    <input type="checkbox" id="bulkSendInvites" checked style="margin-top:3px;">
+                                    <span>Email a "set your password" link to rows that have no password</span>
+                                </label>
+
+                                <div id="bulkStatus"></div>
+
+                                <button id="bulkUploadBtn" class="submit-btn" onclick="uploadEmployeesExcel()" style="background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);">Upload &amp; Import</button>
+
+                                <div id="bulkResults"></div>
+                            </div>
+
                             <div class="card" id="enrollFaceCard">
                                 <div class="card-header">📸 Enroll Face</div>
 
@@ -1574,15 +1594,18 @@
         function applyRolePermissions(role) {
             const addCard = document.getElementById('addEmpCard');
             const enrollCard = document.getElementById('enrollFaceCard');
+            const bulkCard = document.getElementById('bulkUploadCard');
             const roleWrapper = document.getElementById('empRoleWrapper');
             const roleSelect = document.getElementById('empRole');
 
             if (role === 'manager') {
                 addCard.classList.add('hidden');
                 enrollCard.classList.add('hidden');
+                bulkCard.classList.add('hidden');
             } else {
                 addCard.classList.remove('hidden');
                 enrollCard.classList.remove('hidden');
+                bulkCard.classList.remove('hidden');
             }
 
             if (role === 'admin') {
@@ -2194,7 +2217,7 @@
                 showMsg('rpStatus', '✅ Password successfully changed. Redirecting to login…', 'success');
                 setTimeout(() => {
                     // Clear the token from the URL so it can't be resubmitted via back/forward.
-                    window.history.replaceState({}, '', window.location.pathname);
+                    window.history.replaceState({}, '', '/');
                     hideAll();
                     document.getElementById('loginScreen').classList.add('active');
                 }, 1800);
@@ -2226,6 +2249,80 @@
             } catch (e) {
                 console.error(e);
                 alert(e.message || 'Download failed');
+            }
+        }
+
+        // ══════════════ BULK EMPLOYEE UPLOAD (Excel / CSV) ══════════════
+        const bulkEsc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+        async function downloadEmpTemplate() {
+            try {
+                const token = getToken();
+                const res = await fetch(API_BASE + '/employees/bulk/template', {
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+                });
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body.message || 'Download failed');
+                }
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'RD-SSAAT-Employee-Template.xlsx';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } catch (e) { showMsg('bulkStatus', '❌ ' + bulkEsc(e.message || 'Download failed'), 'error'); }
+        }
+
+        async function uploadEmployeesExcel() {
+            const fileInput = document.getElementById('bulkFile');
+            const btn = document.getElementById('bulkUploadBtn');
+            const out = document.getElementById('bulkResults');
+            const file = fileInput.files[0];
+            out.innerHTML = '';
+            if (!file) return showMsg('bulkStatus', '⚠️ Choose an .xlsx or .csv file first', 'error');
+            if (!/\.(xlsx|csv)$/i.test(file.name)) return showMsg('bulkStatus', '⚠️ Only .xlsx or .csv files are supported (in Excel: Save As → .xlsx)', 'error');
+
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('sendInvites', document.getElementById('bulkSendInvites').checked ? 'true' : 'false');
+
+            btn.disabled = true; btn.textContent = 'Importing…';
+            showMsg('bulkStatus', '⏳ Uploading and validating — this can take a few seconds…', 'info');
+            try {
+                const token = getToken();
+                // FormData must set its own multipart Content-Type, so apiFetch (JSON) isn't used here
+                const res = await fetch(API_BASE + '/employees/bulk', {
+                    method: 'POST',
+                    headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+                    body: fd,
+                });
+                if (res.status === 401) { clearSession(); window.location.reload(); return; }
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || data.success === false) throw new Error(data.message || 'Upload failed');
+
+                const s = data.summary;
+                const type = s.created > 0 ? 'success' : 'error';
+                let msg = `✓ ${s.created} created`;
+                if (s.skipped) msg += `, ${s.skipped} skipped (already exist)`;
+                if (s.failed) msg += `, ${s.failed} failed`;
+                if (s.invitesQueued) msg += `. ${s.invitesQueued} set-password email(s) are being sent.`;
+                showMsg('bulkStatus', msg, type);
+
+                const problems = data.results.filter(r => r.status !== 'created');
+                if (problems.length) {
+                    out.innerHTML = '<div style="max-height:260px;overflow:auto;margin-top:12px;border:1px solid #eee;border-radius:12px;">' +
+                        '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+                        '<tr style="background:#f6f6f6;text-align:left;"><th style="padding:8px;">Row</th><th style="padding:8px;">Employee ID</th><th style="padding:8px;">Result</th></tr>' +
+                        problems.map(r => `<tr style="border-top:1px solid #eee;vertical-align:top;"><td style="padding:8px;">${r.row}</td><td style="padding:8px;">${bulkEsc(r.employeeId)}</td><td style="padding:8px;color:${r.status === 'skipped' ? '#b26a00' : '#c62828'};">${bulkEsc(r.message)}</td></tr>`).join('') +
+                        '</table></div>';
+                }
+                if (s.created > 0) { fileInput.value = ''; loadAdmin(); populateManagerDropdown(); }
+            } catch (e) {
+                showMsg('bulkStatus', '❌ ' + bulkEsc(e.message || 'Upload failed'), 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Upload & Import';
             }
         }
 
