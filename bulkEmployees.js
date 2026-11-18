@@ -25,13 +25,13 @@ const ROLES = ['employee', 'manager', 'hr', 'admin'];
 // key → header shown in the template, whether required, and accepted header spellings
 const COLUMNS = [
   { key: 'employeeId',  header: 'Employee ID',   required: true,  width: 16, aliases: ['employeeid', 'empid', 'id', 'employeecode'] },
-  { key: 'name',        header: 'Name',          required: true,  width: 26, aliases: ['name', 'fullname', 'employeename'] },
+  { key: 'name',        header: 'Name',          required: true,  width: 26, aliases: ['name', 'fullname', 'employeename', 'staffname'] },
   { key: 'mobile',      header: 'Mobile',        required: true,  width: 16, aliases: ['mobile', 'mobileno', 'mobilenumber', 'phone'] },
   { key: 'email',       header: 'Email',         required: true,  width: 32, aliases: ['email', 'emailid', 'emailaddress'] },
   { key: 'designation', header: 'Designation',   required: true,  width: 22, aliases: ['designation', 'title'] },
   { key: 'district',    header: 'District',      required: true,  width: 20, aliases: ['district'] },
-  { key: 'role',        header: 'Role (optional)',       required: false, width: 16, aliases: ['role'] },
-  { key: 'managerId',   header: 'Manager ID (optional)', required: false, width: 20, aliases: ['managerid', 'manager'] },
+  { key: 'role',        header: 'Role (optional)',       required: false, width: 16, aliases: ['role', 'employee', 'userrole'] },
+  { key: 'managerId',   header: 'Manager ID (optional)', required: false, width: 20, aliases: ['managerid', 'manager', 'assignmanager', 'managercode'] },
   { key: 'password',    header: 'Password (optional)',   required: false, width: 22, aliases: ['password'] },
 ];
 
@@ -61,10 +61,13 @@ async function readSheet(file) {
 
   // header row → column index per key
   const colIndex = {};
+  const ignored = [];
   ws.getRow(1).eachCell((cell, n) => {
-    const h = normHeader(cellText(cell.value));
+    const raw = cellText(cell.value);
+    const h = normHeader(raw);
     const col = COLUMNS.find((c) => c.aliases.includes(h));
     if (col && !colIndex[col.key]) colIndex[col.key] = n;
+    else if (raw) ignored.push(raw);
   });
   const missing = COLUMNS.filter((c) => c.required && !colIndex[c.key]).map((c) => c.header);
   if (missing.length) {
@@ -82,7 +85,7 @@ async function readSheet(file) {
     }
     if (any) rows.push({ row: r, ...data });
   }
-  return rows;
+  return { rows, ignored };
 }
 
 function createBulkEmployeesRouter({ pool, authenticate }) {
@@ -114,9 +117,8 @@ function createBulkEmployeesRouter({ pool, authenticate }) {
       head.getCell(i + 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.required ? 'FF1B5E20' : 'FF607D8B' } };
     });
     const roleCol = COLUMNS.findIndex((c) => c.key === 'role') + 1;
-    for (let r = 2; r <= MAX_ROWS + 1; r++) {
-      ws.getCell(r, roleCol).dataValidation = { type: 'list', allowBlank: true, formulae: ['"employee,manager,hr,admin"'] };
-    }
+    const L = String.fromCharCode(64 + roleCol); // column letter
+    ws.dataValidations.add(`${L}2:${L}${MAX_ROWS + 1}`, { type: 'list', allowBlank: true, formulae: ['"employee,manager,hr,admin"'] });
 
     const info = wb.addWorksheet('Instructions');
     info.columns = [{ width: 24 }, { width: 90 }];
@@ -159,8 +161,8 @@ function createBulkEmployeesRouter({ pool, authenticate }) {
     if (!['.xlsx', '.csv'].includes(ext))
       return res.status(400).json({ success: false, message: 'Only .xlsx or .csv files are supported (in Excel use Save As → .xlsx)' });
 
-    let sheetRows;
-    try { sheetRows = await readSheet(req.file); }
+    let sheetRows, ignoredHeaders;
+    try { ({ rows: sheetRows, ignored: ignoredHeaders } = await readSheet(req.file)); }
     catch (e) {
       return res.status(400).json({ success: false, message: e.userFacing ? e.message : 'Could not read the file — is it a valid .xlsx/.csv?' });
     }
@@ -179,11 +181,11 @@ function createBulkEmployeesRouter({ pool, authenticate }) {
       if (!r.employeeId) errs.push('Employee ID is required');
       else if (!/^[A-Za-z0-9_-]{1,50}$/.test(r.employeeId)) errs.push('Employee ID may only contain letters, numbers, - and _ (max 50)');
       if (!r.name) errs.push('Name is required'); else if (r.name.length > 100) errs.push('Name is too long (max 100)');
-      if (!/^\d{10}$/.test(r.mobile)) errs.push('Mobile must be exactly 10 digits');
-      if (!EMAIL_RE.test(r.email) || r.email.length > 255) errs.push('Email is not valid');
+      if (!/^\d{10}$/.test(r.mobile)) errs.push(`Mobile "${r.mobile}" must be exactly 10 digits`);
+      if (!EMAIL_RE.test(r.email) || r.email.length > 255) errs.push(`Email "${r.email}" is not valid (needs a full address like name@domain.com)`);
       if (!r.designation) errs.push('Designation is required');
       if (!r.district) errs.push('District is required');
-      if (!ROLES.includes(r.role)) errs.push('Role must be employee, manager, hr or admin');
+      if (!ROLES.includes(r.role)) errs.push(`Role "${r.role}" must be employee, manager, hr or admin`);
       else if (!isAdmin && r.role !== 'employee') errs.push('Only admins can create manager/hr/admin accounts');
       if (r.password && !PASSWORD_RE.test(r.password)) errs.push(PASSWORD_MSG);
       if (errs.length) fail(r, errs.join('; ')); else ok.push(r);
@@ -287,7 +289,8 @@ function createBulkEmployeesRouter({ pool, authenticate }) {
       failed: list.filter((x) => x.status === 'failed').length,
       invitesQueued: invites.length,
     };
-    res.json({ success: true, message: `Imported ${summary.created} of ${summary.total} rows`, summary, results: list });
+    const warnings = ignoredHeaders.length ? [`Ignored column(s) not recognised: ${ignoredHeaders.join(', ')}. Use the template headers if you wanted these imported.`] : [];
+    res.json({ success: true, message: `Imported ${summary.created} of ${summary.total} rows`, summary, warnings, results: list });
 
     pool.query(
       `INSERT INTO audit_logs (employee_id, action, module, new_value) VALUES ($1, 'bulk_create_employees', 'employees', $2)`,

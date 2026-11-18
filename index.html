@@ -2310,9 +2310,12 @@
                 if (s.invitesQueued) msg += `. ${s.invitesQueued} set-password email(s) are being sent.`;
                 showMsg('bulkStatus', msg, type);
 
+                if (data.warnings && data.warnings.length) {
+                    out.innerHTML = data.warnings.map(w => `<div class="status-message status-info" style="margin-top:10px;">⚠️ ${bulkEsc(w)}</div>`).join('');
+                }
                 const problems = data.results.filter(r => r.status !== 'created');
                 if (problems.length) {
-                    out.innerHTML = '<div style="max-height:260px;overflow:auto;margin-top:12px;border:1px solid #eee;border-radius:12px;">' +
+                    out.innerHTML += '<div style="max-height:260px;overflow:auto;margin-top:12px;border:1px solid #eee;border-radius:12px;">' +
                         '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
                         '<tr style="background:#f6f6f6;text-align:left;"><th style="padding:8px;">Row</th><th style="padding:8px;">Employee ID</th><th style="padding:8px;">Result</th></tr>' +
                         problems.map(r => `<tr style="border-top:1px solid #eee;vertical-align:top;"><td style="padding:8px;">${r.row}</td><td style="padding:8px;">${bulkEsc(r.employeeId)}</td><td style="padding:8px;color:${r.status === 'skipped' ? '#b26a00' : '#c62828'};">${bulkEsc(r.message)}</td></tr>`).join('') +
