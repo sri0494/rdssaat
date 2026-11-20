@@ -2261,9 +2261,11 @@
                 const res = await fetch(API_BASE + '/employees/bulk/template', {
                     headers: token ? { 'Authorization': 'Bearer ' + token } : {},
                 });
-                if (!res.ok) {
-                    const body = await res.json().catch(() => ({}));
-                    throw new Error(body.message || 'Download failed');
+                const ctype = res.headers.get('content-type') || '';
+                if (!res.ok || !ctype.includes('spreadsheetml')) {
+                    // Not an Excel file — don't save it (it would open as "corrupted")
+                    const body = ctype.includes('json') ? await res.json().catch(() => ({})) : {};
+                    throw new Error(body.message || `The server did not return the template (HTTP ${res.status}). The bulk-upload route is not reachable — check that server.js mounts bulkEmployees.js and redeploy. Test: open ${location.origin}/api/employees/bulk/ping`);
                 }
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
@@ -2299,8 +2301,11 @@
                     body: fd,
                 });
                 if (res.status === 401) { clearSession(); window.location.reload(); return; }
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok || data.success === false) throw new Error(data.message || 'Upload failed');
+                const raw = await res.text();
+                let data = null;
+                try { data = JSON.parse(raw); } catch (_) {}
+                if (!data) throw new Error(`The server sent an unexpected reply (HTTP ${res.status}), not the import result. The /api/employees/bulk route is probably not mounted or the server errored — check server.js and the Render logs. Test: open ${location.origin}/api/employees/bulk/ping`);
+                if (!res.ok || data.success === false) throw new Error(data.message || `Upload failed (HTTP ${res.status})`);
 
                 const s = data.summary;
                 const type = s.created > 0 ? 'success' : 'error';

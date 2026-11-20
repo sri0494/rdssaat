@@ -1,7 +1,8 @@
 -- RD-SSAAT — Database Schema (pure SQL, safe to run directly in psql / any SQL client)
--- v2: adds indexes for the email password-reset flow and Excel bulk upload, plus
---     optional maintenance / data-fix queries at the bottom (all commented out).
---     No table or column changes — an existing database upgrades in place by re-running this file.
+-- v3: password recovery is by EMAILED LINK ONLY (password_reset_tokens) — no OTP.
+--     The unused otp_tokens table and its index are removed from the schema.
+--     Also has the indexes for Excel bulk upload; optional maintenance queries are at
+--     the bottom (all commented out). An existing database upgrades in place by re-running this file.
 -- This matches migrate.js exactly and was verified against a live instance,
 -- including a from-scratch run against a brand-new database.
 -- Run top to bottom. Safe to re-run against an existing database — uses
@@ -70,19 +71,7 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 
 -- ══════════════════════════════════════════════════════════════
--- 4. otp_tokens — preserved, no longer used for password reset (see auth.js)
--- ══════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS otp_tokens (
-    id         SERIAL       PRIMARY KEY,
-    mobile     VARCHAR(15)  NOT NULL,
-    otp_hash   VARCHAR(255) NOT NULL,
-    expires_at TIMESTAMPTZ  NOT NULL,
-    used       BOOLEAN      DEFAULT false,
-    created_at TIMESTAMPTZ  DEFAULT NOW()
-);
-
--- ══════════════════════════════════════════════════════════════
--- 5. password_reset_tokens — replaces OTP for password recovery
+-- 4. password_reset_tokens — emailed reset link + new-staff "set your password" link
 -- ══════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id          SERIAL       PRIMARY KEY,
@@ -94,7 +83,7 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 );
 
 -- ══════════════════════════════════════════════════════════════
--- 6. leave_types
+-- 5. leave_types
 -- ══════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS leave_types (
     id                    SERIAL       PRIMARY KEY,
@@ -111,7 +100,7 @@ INSERT INTO leave_types (name, annual_quota_days, requires_document) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ══════════════════════════════════════════════════════════════
--- 7. leave_requests
+-- 6. leave_requests
 -- ══════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS leave_requests (
     id                SERIAL       PRIMARY KEY,
@@ -134,7 +123,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
 );
 
 -- ══════════════════════════════════════════════════════════════
--- 8. role_permissions
+-- 7. role_permissions
 -- ══════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS role_permissions (
     id          SERIAL       PRIMARY KEY,
@@ -170,7 +159,7 @@ INSERT INTO role_permissions (role, module, can_view, can_create, can_edit, can_
 ON CONFLICT (role, module) DO NOTHING;
 
 -- ══════════════════════════════════════════════════════════════
--- 9. audit_logs
+-- 8. audit_logs
 -- ══════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS audit_logs (
     id          SERIAL       PRIMARY KEY,
@@ -188,18 +177,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- ══════════════════════════════════════════════════════════════
 CREATE INDEX IF NOT EXISTS idx_att_emp      ON attendance(employee_id);
 CREATE INDEX IF NOT EXISTS idx_att_date     ON attendance(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_otp_mob      ON otp_tokens(mobile);
 CREATE INDEX IF NOT EXISTS idx_leave_emp    ON leave_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_status ON leave_requests(status);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
 
--- v2: password reset / "set your password" invite links
+-- password reset / "set your password" invite links
 -- (lookup of open tokens per employee, 60-second resend cooldown check, expiry cleanup)
 CREATE INDEX IF NOT EXISTS idx_prt_employee_open ON password_reset_tokens(employee_id) WHERE used = false;
 CREATE INDEX IF NOT EXISTS idx_prt_employee_created ON password_reset_tokens(employee_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_prt_expires ON password_reset_tokens(expires_at);
 
--- v2: bulk upload checks manager references and lists staff per manager
+-- bulk upload checks manager references and lists staff per manager
 CREATE INDEX IF NOT EXISTS idx_employees_manager ON employees(manager_id);
 CREATE INDEX IF NOT EXISTS idx_employees_role ON employees(role) WHERE is_active = true;
 
@@ -224,6 +212,10 @@ COMMIT;
 -- ══════════════════════════════════════════════════════════════
 -- OPTIONAL — run these by hand when needed (not part of the migration)
 -- ══════════════════════════════════════════════════════════════
+
+-- 0) Existing database that still has the old OTP table? It is unused now. Drop it once you have
+--    confirmed no code (auth.js, migrate.js, a cleanup job) still references otp_tokens:
+--    DROP TABLE IF EXISTS otp_tokens;
 
 -- 1) The seeded admin email (admin@example.com) cannot receive reset emails.
 --    Put a real address on the admin account, then "Forgot Password" works for admin too:

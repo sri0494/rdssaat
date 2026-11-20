@@ -106,6 +106,9 @@ function createBulkEmployeesRouter({ pool, authenticate }) {
 
   const guard = [authenticate, requireCreateEmployees];
 
+  // Open /api/employees/bulk/ping in a browser to confirm this router is deployed and mounted
+  router.get('/ping', (req, res) => res.json({ success: true, bulkUpload: 'mounted' }));
+
   // ───────────── Template ─────────────
   router.get('/template', guard, async (req, res) => {
     const wb = new ExcelJS.Workbook();
